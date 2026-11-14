@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>המסע לאוצר הכפל</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sea:#0e3a4a; --sea-deep:#072631; --foam:#cfe9ee;
+  --parch:#f6e7c6; --parch-2:#e8d09c; --ink:#3a2817;
+  --gold:#f2b632; --coral:#e4573f; --leaf:#4f9d69; --violet:#7a5cc9;
+  --display:"Secular One","Rubik",system-ui,sans-serif;
+  --body:"Rubik",system-ui,"Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+  /* layout: treasure map (right) beside the turn panel (left); stacks on narrow screens */
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:var(--body);color:var(--ink);
+  background:
+    radial-gradient(1200px 500px at 80% -10%, #1d5a6c 0%, transparent 60%),
+    radial-gradient(900px 600px at 0% 110%, #0a4a5a 0%, transparent 60%),
+    var(--sea);
+  min-height:100%;
+}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding:12px 16px 20px;display:flex;flex-direction:column;gap:10px}
+
+/* HUD */
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:10px;color:var(--foam)}
+.who{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:1.35rem;color:#fff}
+.avatar{font-size:1.8rem}
+.hearts{font-size:1.4rem;letter-spacing:2px}
+.pill{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:4px 12px;border-radius:999px;font-weight:700;font-size:1.05rem;color:#fff;font-variant-numeric:tabular-nums}
+.hud-btns{margin-inline-start:auto;display:flex;gap:6px}
+.btn{border:0;border-radius:14px;padding:10px 18px;font-size:1.1rem;font-weight:700;background:var(--gold);color:var(--ink);box-shadow:0 3px 0 #b07d10;transition:transform .08s}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #b07d10}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.big{font-size:1.35rem;padding:14px 28px}
+.btn.small{font-size:.95rem;padding:7px 12px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none;border:1px solid rgba(255,255,255,.2)}
+.btn.ghost{background:var(--parch-2);box-shadow:0 3px 0 #b89a5c}
+
+/* race bar */
+.race{background:rgba(0,0,0,.18);border-radius:999px;padding:6px 44px 6px 18px;position:relative}
+.track{position:relative;height:30px;border-bottom:3px dashed rgba(255,255,255,.35)}
+.rt{position:absolute;bottom:-6px;font-size:1.6rem;transform:translateX(50%);transition:inset-inline-start .3s}
+.rt#rX{bottom:-12px;font-size:1.3rem}
+#rP{bottom:2px}
+.goal{position:absolute;inset-inline-end:-36px;bottom:-4px;font-size:1.7rem}
+
+/* main grid */
+.game{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.game{grid-template-columns:1fr}}
+
+/* map */
+.map-card{background:var(--parch);border-radius:22px;padding:10px;box-shadow:inset 0 0 40px rgba(140,95,30,.35),0 10px 30px rgba(0,0,0,.35)}
+.map{position:relative;width:100%;aspect-ratio:6/5;container-type:inline-size;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(160,120,50,.12) 0 8%, transparent 9%),
+    radial-gradient(circle at 75% 70%, rgba(160,120,50,.10) 0 10%, transparent 11%);
+  border-radius:14px}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.sq{position:absolute;width:12.5%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  display:grid;place-items:center;font-size:6cqw;background:#fff8e6;border:.5cqw solid #c9a86a;box-shadow:0 .6cqw 0 rgba(120,80,20,.25)}
+.sq .n{font-size:2.4cqw;color:#a88a55;font-weight:700}
+.sq.chest{background:#ffe9a8;border-color:var(--gold)}
+.sq.magic{background:#e6dcff;border-color:var(--violet)}
+.sq.echo{background:#d8f0f4;border-color:#3a9bb0}
+.sq.monster{background:#ffd9d0;border-color:var(--coral)}
+.sq.dragon{background:#ffc9bd;border-color:#b8321f;border-width:.8cqw}
+.sq.castle{width:16%;font-size:9cqw;background:#fff1c9;border-color:var(--gold);border-width:.9cqw}
+.sq.start{background:#d9f2df;border-color:var(--leaf)}
+.token{position:absolute;font-size:7cqw;transform:translate(-50%,-70%);transition:left .25s ease,top .25s ease;filter:drop-shadow(0 .5cqw .3cqw rgba(0,0,0,.35));z-index:3;pointer-events:none}
+.token.pirate{z-index:2;font-size:6cqw}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;padding:8px 4px 2px;font-size:.95rem;color:#6b5234}
+
+/* panel */
+.panel{background:var(--parch);border-radius:22px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.35);min-height:420px;display:flex}
+#stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+#stage h2{font-family:var(--display);font-weight:400;font-size:1.8rem;margin:0;text-wrap:balance}
+.sub{margin:0;font-size:1.08rem;color:#6b5234;max-width:42ch;line-height:1.45}
+.dice{display:flex;gap:14px;justify-content:center;margin:6px 0}
+.die{width:78px;height:78px;border-radius:18px;background:#fff;border:3px solid #c9a86a;font-size:2.3rem;font-weight:700;display:grid;place-items:center;color:var(--ink);box-shadow:0 5px 0 #b89a5c;line-height:1}
+.die small{font-size:1rem;display:block}
+.die.idle{color:#c9a86a}
+.die.joker{background:#efe6ff;border-color:var(--violet)}
+.die.gold{background:#fff0bf;border-color:var(--gold)}
+.die.sel{transform:translateY(-6px);border-color:var(--leaf);box-shadow:0 0 0 4px rgba(79,157,105,.4),0 8px 0 #3b7a50}
+.die.small{width:64px;height:64px;font-size:2rem}
+
+.expr{font-size:3.2rem;font-weight:700;display:flex;align-items:center;gap:14px;justify-content:center;font-variant-numeric:tabular-nums}
+.ans{min-width:110px;padding:2px 12px;border-bottom:5px solid var(--ink);display:inline-block;color:var(--violet)}
+.expr.ok .ans{color:var(--leaf);border-color:var(--leaf)}
+.expr.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.note{font-size:1.3rem;font-weight:700;color:#6b5234}
+.hint{min-height:1.5em;font-size:1.1rem;line-height:1.5;max-width:44ch;color:#4a3520}
+.hint .box{background:#fff8e6;border:2px dashed #c9a86a;border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.m{font-weight:700;white-space:nowrap;unicode-bidi:isolate}
+.dots{display:inline-grid;gap:4px;direction:ltr}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--coral);display:block}
+.dots i.c5{margin-right:6px}
+.dots i.r5{margin-bottom:6px}
+.pad{display:grid;grid-template-columns:repeat(3,64px);gap:8px}
+.key{height:56px;border-radius:14px;border:0;background:#fff;font-size:1.6rem;font-weight:700;color:var(--ink);box-shadow:0 3px 0 #c9a86a}
+.key:active{transform:translateY(2px);box-shadow:0 1px 0 #c9a86a}
+.key.go{background:var(--leaf);color:#fff;box-shadow:0 3px 0 #2f6b44}
+.key.fn{background:var(--parch-2)}
+.tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.monster-head{font-size:4rem;line-height:1}
+.hp{font-size:1.2rem;letter-spacing:3px;color:#b8321f}
+.locks{font-size:2.6rem;letter-spacing:6px}
+.card-icon{font-size:4.2rem;line-height:1}
+.card p{font-size:1.2rem;line-height:1.55;max-width:40ch;margin:0}
+.ex{display:block;margin-top:10px;font-size:1.4rem;font-weight:700;color:var(--violet)}
+.pirate-big{font-size:4rem}
+.bigmsg{font-family:var(--display);font-size:2.2rem;color:var(--leaf)}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(4,22,30,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+.overlay.on{display:flex}
+.modal{background:var(--parch);border-radius:24px;padding:24px;max-width:560px;width:100%;max-height:90%;overflow:auto;text-align:center;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h1{font-family:var(--display);font-weight:400;font-size:2.3rem;margin:0;color:var(--sea)}
+.modal h2{font-family:var(--display);font-weight:400;font-size:1.7rem;margin:0}
+.modal label{font-weight:700;font-size:1.1rem}
+.modal input{font:inherit;font-size:1.3rem;padding:10px 14px;border-radius:12px;border:2px solid #c9a86a;background:#fff;text-align:center;width:min(100%,280px);align-self:center}
+.chars{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chars button{font-size:2.4rem;width:70px;height:70px;border-radius:18px;border:3px solid transparent;background:#fff}
+.chars button[aria-pressed="true"]{border-color:var(--leaf);background:#e3f4e8}
+.list{display:flex;flex-direction:column;gap:10px;text-align:start}
+.trick{background:#fff8e6;border-radius:14px;padding:12px 14px;border-inline-start:5px solid var(--violet)}
+.trick b{font-size:1.15rem}
+.trick.locked{opacity:.5;border-color:#c9a86a}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.chip{background:#fff;border-radius:10px;padding:5px 10px;font-weight:700;direction:ltr;unicode-bidi:isolate}
+.trophy{font-size:5rem;line-height:1}
+.cert{isolation:isolate;background:#fffaf0;border:6px double #c9a86a;border-radius:18px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.medal{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;position:relative;margin-top:26px;
+  font-family:var(--display);font-size:2.8rem;color:#fff;box-shadow:inset 0 -6px 0 rgba(0,0,0,.15),0 4px 10px rgba(0,0,0,.25)}
+.medal::before{content:"";position:absolute;top:-30px;left:50%;width:44px;height:40px;transform:translateX(-50%);
+  background:linear-gradient(90deg,var(--coral) 0 50%,#2f7fb0 50%);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%);z-index:-1}
+.medal.gold{background:radial-gradient(circle at 35% 30%,#ffe58a,#f2b632 55%,#c98a10)}
+.medal.silver{background:radial-gradient(circle at 35% 30%,#ffffff,#c7d0d8 55%,#8e9aa5)}
+.medal span{text-shadow:0 2px 0 rgba(0,0,0,.2)}
+.cert-title{font-family:var(--display);font-size:2rem;color:var(--sea)}
+.cert-name{font-family:var(--display);font-size:1.7rem}
+.cert-stars{font-size:1.4rem;font-weight:700}
+.cert-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+@media (max-width:480px){.cert-cols{grid-template-columns:1fr}}
+.cert-col{border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.cert-col.ok{background:#e3f4e8}.cert-col.bad{background:#fde6dc}
+.cert-h{font-weight:700;font-size:1.2rem}
+.chip.ok{color:#2f6b44}.chip.bad{color:#b8321f}
+.cert-date{color:#8a7050;font-size:.95rem}
+canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:30}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:520px){
+  .expr{font-size:2.4rem}.die{width:64px;height:64px;font-size:1.9rem}
+  .pad{grid-template-columns:repeat(3,58px)}.hud-btns{margin-inline-start:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hud">
+    <div class="who"><span class="avatar" id="avatar">🧜‍♀️</span><span id="pname">הרפתקנית</span></div>
+    <div class="hearts" id="hearts" aria-label="לבבות">❤️❤️❤️</div>
+    <div class="pill" id="stars" title="כוכבים">⭐ 0</div>
+    <div class="pill" id="splits" title="קלפי פירוק">✂️ 1</div>
+    <div class="hud-btns">
+      <button class="btn small" id="bookBtn">📖 ספר הכשפים</button>
+      <button class="btn small" id="logBtn">📜 ספר ההרפתקאות</button>
+      <button class="btn small" id="muteBtn" aria-label="צליל">🔊</button>
+    </div>
+  </header>
+  <div class="race" aria-label="המירוץ מול הפיראט">
+    <div class="track"><span class="rt" id="rP">🧜‍♀️</span><span class="rt" id="rX">🏴‍☠️</span><span class="goal">🏰</span></div>
+  </div>
+  <main class="game">
+    <section class="map-card">
+      <div class="map" id="map"></div>
+      <div class="legend"><span>🎁 תיבת הפתעות</span><span>✨ כשף חדש</span><span>🔮 קלף ההד</span><span>👾 מפלצת</span><span>🐉 הדרקון</span><span>🏴‍☠️ הפיראט</span></div>
+    </section>
+    <section class="panel"><div id="stage"></div></section>
+  </main>
+</div>
+
+<div class="overlay on" id="startOv">
+  <div class="modal">
+    <h1>המסע לאוצר הכפל</h1>
+    <p class="sub" style="align-self:center">הפיראט כבר יצא לדרך! פתרי תרגילי כפל, אספי כשפים, נצחי את הדרקון והגיעי לטירה לפניו.</p>
+    <label for="nameInput">איך קוראים לך?</label>
+    <input id="nameInput" maxlength="14" placeholder="השם שלך" autocomplete="off">
+    <label>בחרי דמות</label>
+    <div class="chars" id="chars"></div>
+    <button class="btn big" id="startBtn">יוצאים לדרך!</button>
+  </div>
+</div>
+<div class="overlay" id="infoOv"><div class="modal" id="infoBody"></div></div>
+<canvas id="fx"></canvas>
+
+<script>
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const store={
+  get(k,d){try{const v=localStorage.getItem('mtq_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('mtq_'+k,JSON.stringify(v))}catch(e){}}
+};
+const M=s=>`<span class="m" dir="ltr">${s}</span>`;
+
+/* ---------- sound ---------- */
+let AC=null, muted=store.get('muted',false);
+function tone(f,d=.12,type='sine',v=.08){
+  if(muted)return;
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+    o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02);}catch(e){}
+}
+const sfx={
+  ok(){tone(660);setTimeout(()=>tone(880),110)},
+  soft(){tone(320,.18,'triangle',.05)},
+  step(){tone(540,.05,'square',.025)},
+  roll(){tone(180+Math.random()*220,.04,'square',.025)},
+  win(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.25),i*150))},
+  magic(){[880,1175,1568].forEach((f,i)=>setTimeout(()=>tone(f,.15,'sine',.05),i*90))}
+};
+
+/* ---------- dice: 1 and 10 come up less often ---------- */
+const WEIGHTS=[0,.35,1,1,1,1,1,2.2,2.2,1,.35];  // 7 and 8 ~20% each, 1 and 10 ~3%, others ~9%
+function rollDie(){const tot=WEIGHTS.reduce((a,b)=>a+b,0);let r=Math.random()*tot;
+  for(let v=1;v<=10;v++){r-=WEIGHTS[v];if(r<=0)return v}return 6}
+
+/* ---------- saved progress ---------- */
+let stats=store.get('stats',{}), log=store.get('log',[]), tricks=store.get('tricks',[]),
+    dragons=store.get('dragons',{}), pets=store.get('pets',[]), best=store.get('best',0);
+const key=(a,b)=>Math.min(a,b)+'x'+Math.max(a,b);
+function recordFact(a,b,ok){const k=key(a,b);const s=stats[k]||{r:0,w:0};ok?s.r++:s.w++;stats[k]=s;store.set('stats',stats)}
+function addLog(a,b){const e={a,b,c:a*b};S.sessionLog.push(e);log.push(e);if(log.length>40)log=log.slice(-40);store.set('log',log)}
+const DEFAULTS=[[7,8],[8,8],[7,7],[6,7],[6,8],[7,9],[8,9],[4,7],[4,8],[3,7],[3,8],[5,7]];
+function weakList(){
+  const arr=Object.entries(stats).filter(([k,v])=>v.w>0).map(([k,v])=>{const[a,b]=k.split('x').map(Number);return{a,b,k,score:v.w*3-v.r}})
+    .filter(o=>o.score>-3).sort((x,y)=>y.score-x.score);
+  const seen=new Set(arr.map(o=>o.k));
+  for(const[a,b]of DEFAULTS){const k=key(a,b);if(seen.has(k))continue;const s=stats[k];if(s&&s.r>=3&&s.w===0)continue;arr.push({a,b,k,score:-99});seen.add(k)}
+  if(arr.length<3)for(const[a,b]of DEFAULTS){const k=key(a,b);if(!seen.has(k)){arr.push({a,b,k,score:-100});seen.add(k)}}
+  return arr;
+}
+const orient=(a,b)=>Math.random()<.5?[a,b]:[b,a];
+function pickWeak(top=6){const l=weakList().slice(0,top);const o=l[Math.floor(Math.random()*l.length)];return orient(o.a,o.b)}
+function nemesis(){const l=weakList().filter(o=>!pets.includes(o.k));return l[0]||{a:7,b:8,k:'7x8'}}
+
+/* ---------- tricks ---------- */
+const TRICKS=[
+  {id:'t10',icon:'🔟',name:'הסוד של 10',text:'כופלים ב־10? כותבים את המספר ומוסיפים אפס בסוף.',ex:'7 × 10 = 70',p:()=>[rnd(2,9),10]},
+  {id:'tswap',icon:'🔄',name:'המהפך',text:'הסדר לא משנה! 3 × 8 זה בדיוק כמו 8 × 3. בוחרים את הסדר שקל יותר.',ex:'2 × 9 = 9 × 2 = 18',p:()=>[rnd(2,3),rnd(6,9)]},
+  {id:'t5',icon:'🖐️',name:'חצי מ־10',text:'כפול 5 זה חצי מכפול 10. קודם כפול 10, ואז חצי.',ex:'8 × 5 = (8 × 10) ÷ 2 = 40',p:()=>[rnd(3,9),5]},
+  {id:'t9',icon:'9️⃣',name:'כמעט 10',text:'כפול 9 זה כפול 10, פחות פעם אחת המספר.',ex:'6 × 9 = 60 − 6 = 54',p:()=>[rnd(3,9),9]},
+  {id:'t4',icon:'🪞',name:'הכפלה כפולה',text:'כפול 4 זה להכפיל, ואז להכפיל שוב.',ex:'7 × 4 → 14 → 28',p:()=>[rnd(3,9),4]},
+  {id:'t6',icon:'➕',name:'חמש ועוד אחת',text:'כפול 6 זה כפול 5, ועוד פעם אחת המספר.',ex:'7 × 6 = 35 + 7 = 42',p:()=>[rnd(3,9),6]},
+  {id:'t8',icon:'🎱',name:'שלוש הכפלות',text:'כפול 8 זה להכפיל שלוש פעמים ברצף.',ex:'6 × 8 → 12 → 24 → 48',p:()=>[rnd(3,9),8]},
+  {id:'tsplit',icon:'✂️',name:'הפירוק',text:'תרגיל קשה? מפרקים אותו לשני תרגילים קלים ומחברים.',ex:'7 × 8 = 7 × 5 + 7 × 3 = 35 + 21',p:()=>[rnd(6,9),rnd(6,9)]},
+  {id:'t9f',icon:'🌟',name:'הספרות של 9',text:'בכפולות של 9 (עד 90) הספרות של התשובה תמיד מסתכמות ל־9.',ex:'9 × 7 = 63 → 6 + 3 = 9',p:()=>[9,rnd(2,9)]}
+];
+
+/* ---------- game state ---------- */
+const CHARS=['🧜‍♀️','🧚‍♀️','🦄','🦊','🐱','🧙‍♀️','🐼','🦖'];
+let S={name:store.get('name',''),char:store.get('char','🧜‍♀️'),pos:0,pirate:0,hearts:3,stars:0,split:1,pirateStuck:0,pirateArrived:false,board:[],sessionLog:[]};
+const stage=$('#stage');
+const ICON={start:'⛵',chest:'🎁',magic:'✨',echo:'🔮',monster:'👾',dragon:'🐉',castle:'🏰'};
+const LAST=29;
+
+function makeBoard(){
+  const b=Array(30).fill('plain');b[0]='start';b[LAST]='castle';
+  b[6]='monster';b[12]='dragon';b[19]='monster';b[25]='dragon';
+  const pool=['chest','chest','chest','chest','chest','magic','magic','magic','magic','echo','echo','echo','echo'];
+  for(const t of pool){let i,guard=0;do{i=rnd(1,LAST-1);guard++}while((b[i]!=='plain'||(t==='echo'&&i<4)||(t!=='chest'&&b[i-1]===t))&&guard<200);if(b[i]==='plain')b[i]=t}
+  return b;
+}
+function sqPos(i){const r=Math.floor(i/6),k=i%6;const c=r%2===0?5-k:k;return{x:8.5+c*16.6,y:89-r*19.5}}
+function renderMap(){
+  const pts=[...Array(30).keys()].map(i=>{const p=sqPos(i);return p.x+','+p.y}).join(' ');
+  let h=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#b8955a" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
+  S.board.forEach((t,i)=>{const p=sqPos(i);h+=`<div class="sq ${t}" style="left:${p.x}%;top:${p.y}%">${ICON[t]||`<span class="n">${i}</span>`}</div>`});
+  h+=`<div class="token pirate" id="tX">🏴‍☠️</div><div class="token" id="tP">${S.char}</div>`;
+  $('#map').innerHTML=h;renderTokens();
+}
+function renderTokens(){
+  const p=sqPos(S.pos),x=sqPos(S.pirate);
+  const tP=$('#tP'),tX=$('#tX');
+  if(tP){tP.style.left=(p.x-2.2)+'%';tP.style.top=(p.y-1)+'%'}
+  if(tX){tX.style.left=(x.x+3)+'%';tX.style.top=(x.y+3)+'%'}
+  $('#rP').style.insetInlineStart=(S.pos/LAST*100)+'%';
+  $('#rX').style.insetInlineStart=(S.pirate/LAST*100)+'%';
+}
+function hud(){
+  $('#hearts').textContent='❤️'.repeat(S.hearts)+'🤍'.repeat(Math.max(0,3-S.hearts));
+  $('#stars').textContent='⭐ '+S.stars;
+  $('#splits').textContent='✂️ '+S.split;
+  $('#avatar').textContent=S.char;$('#rP').textContent=S.char;
+  $('#pname').textContent=S.name||'הרפתקנית';
+  $('#muteBtn').textContent=muted?'🔇':'🔊';
+}
+
+/* ---------- hints ---------- */
+function mulHint(a,b){
+  const has=n=>a===n||b===n,other=n=>a===n?b:a;
+  if(has(1)){const x=other(1);return M(x+' × 1 = '+x)}
+  if(has(10)){const x=other(10);return M(x+' → '+x+'0')}
+  if(has(2)){const x=other(2);return M(x+' + '+x+' = ?')}
+  if(has(5)){const x=other(5);return M(x+' × 10 = '+x*10+' → ½ = ?')}
+  if(has(9)){const x=other(9);return M(x+' × 10 = '+x*10+' → '+x*10+' − '+x+' = ?')}
+  if(has(4)){const x=other(4);return M(x+' → '+2*x+' → ?')}
+  if(has(8)){const x=other(8);return M(x+' → '+2*x+' → '+4*x+' → ?')}
+  if(has(3)){const x=other(3);return M(x+' + '+x+' + '+x+' = ?')}
+  const big=Math.max(a,b),small=Math.min(a,b),r=big-5;
+  return `${M(small+' × 5 = '+small*5)}<br>${M(small+' × '+r+' = ?')}<br>${M(small*5+' + ? = ?')}`;
+}
+function dots(rows,cols){
+  if(rows*cols>100)return '';
+  let h=`<div class="dots" style="grid-template-columns:repeat(${cols},10px)">`;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)h+=`<i class="${c===4&&cols>5?'c5':''} ${r===4&&rows>5?'r5':''}"></i>`;
+  return h+'</div>';
+}
+function hintHTML(q,level){
+  if(!level)return '';
+  let parts=[];
+  if(q.kind==='mul'){
+    parts.push(mulHint(q.a,q.b));
+    if(level>=2)parts.push(dots(q.a,q.b));
+  }else{
+    parts.push(M('? × '+q.a+' = '+q.c));
+    if(level>=2)parts.push(q.mem?`🔮 ${M(q.mem.a+' × '+q.mem.b+' = '+q.mem.c)}`:dots(q.answer,q.a));
+  }
+  if(level>=3)parts.push(`<b>✍️ ${M(q.answer)}</b>`);
+  return `<div class="box">${parts.map(p=>`<div>${p}</div>`).join('')}</div>`;
+}
+
+/* ---------- asking an exercise ---------- */
+let current=null;
+function ask(q){return new Promise(resolve=>{current={q,input:'',tries:0,level:0,note:'',resolve};renderAsk()})}
+function canSplit(q){return q.canSplit&&S.split>0&&q.kind==='mul'&&Math.min(q.a,q.b)>=3&&Math.max(q.a,q.b)>=6&&!current.note}
+function renderAsk(msg){
+  const c=current,q=c.q,box=`<span class="ans" id="ans">${c.input||'&nbsp;'}</span>`;
+  const expr=q.kind==='mul'?`<span>${q.a} × ${q.b} =</span>${box}`:q.kind==='div'?`<span>${q.c} ÷ ${q.a} =</span>${box}`:`${box}<span>× ${q.a} = ${q.c}</span>`;
+  stage.innerHTML=`
+    ${q.head||''}
+    <h2>${q.title}</h2>
+    ${q.sub?`<p class="sub">${q.sub}</p>`:''}
+    <div class="expr" id="expr" dir="ltr">${expr}</div>
+    ${c.note?`<div class="note" dir="ltr">${c.note}</div>`:''}
+    <div class="hint">${msg?`<p style="margin:0 0 6px;font-weight:700">${msg}</p>`:''}${hintHTML(q,c.level)}</div>
+    <div class="pad" dir="ltr">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" data-k="${n}">${n}</button>`).join('')}
+      <button class="key fn" data-k="del" aria-label="מחיקה">⌫</button><button class="key" data-k="0">0</button><button class="key go" data-k="ok" aria-label="בדיקה">✓</button></div>
+    <div class="tools">
+      ${c.level<3?`<button class="btn ghost" id="hintBtn">💡 רמז</button>`:''}
+      ${canSplit(q)?`<button class="btn ghost" id="splitBtn">✂️ פירוק (${S.split})</button>`:''}
+    </div>`;
+  stage.querySelectorAll('.key').forEach(b=>b.onclick=()=>press(b.dataset.k));
+  const hb=$('#hintBtn');if(hb)hb.onclick=()=>{c.level=Math.min(3,c.level+1);renderAsk()};
+  const sb=$('#splitBtn');if(sb)sb.onclick=splitFlow;
+}
+function press(k){
+  const c=current;if(!c||c.locked)return;
+  if(k==='del')c.input=c.input.slice(0,-1);
+  else if(k==='ok')return submit();
+  else if(c.input.length<3)c.input+=k;
+  $('#ans').innerHTML=c.input||'&nbsp;';
+}
+async function submit(){
+  const c=current;if(!c||c.input===''||c.locked)return;
+  const q=c.q;
+  if(+c.input===q.answer){
+    c.locked=true;sfx.ok();$('#expr').classList.add('ok');
+    if(q.kind==='mul'&&q.track!==false){recordFact(q.a,q.b,c.tries===0);addLog(q.a,q.b)}
+    if(q.track!==false){
+      const t=q.kind==='mul'?`${q.a} × ${q.b} = ${q.answer}`:q.kind==='div'?`${q.c} ÷ ${q.a} = ${q.answer}`:`${q.answer} × ${q.a} = ${q.c}`;
+      const k=q.kind==='mul'?'m'+key(q.a,q.b):'d'+q.c+'/'+q.a;
+      S.results.push({k,t,ok:c.tries===0});
+    }
+    await sleep(700);current=null;c.resolve({firstTry:c.tries===0});
+  }else{
+    c.tries++;sfx.soft();c.input='';c.level=Math.max(c.level,Math.min(3,c.tries));
+    if(q.onWrong&&q.onWrong()==='abort'){current=null;c.resolve({aborted:true});return}
+    renderAsk('כמעט! 💡');
+    $('#expr').classList.add('shake');
+  }
+}
+async function splitFlow(){
+  const main=current,q=main.q;S.split--;hud();sfx.magic();
+  const big=Math.max(q.a,q.b),small=Math.min(q.a,q.b),p=big>5?5:Math.floor(big/2),r=big-p;
+  await ask({kind:'mul',a:small,b:p,answer:small*p,title:'✂️ 1',sub:M(small+' × '+big),track:false});
+  await ask({kind:'mul',a:small,b:r,answer:small*r,title:'✂️ 2',sub:M(small+' × '+big),track:false});
+  main.note=`${small*p} + ${small*r} = ?`;
+  current=main;renderAsk('✂️ ➕');
+}
+document.addEventListener('keydown',e=>{
+  if(!current||$('.overlay.on'))return;
+  if(/^[0-9]$/.test(e.key)){press(e.key);e.preventDefault()}
+  else if(e.key==='Backspace'){press('del');e.preventDefault()}
+  else if(e.key==='Enter'){submit();e.preventDefault()}
+});
+
+/* ---------- small screens ---------- */
+function card({icon,title,text,btn='המשך'}){return new Promise(res=>{
+  stage.innerHTML=`<div class="card-icon">${icon}</div><h2>${title}</h2><p class="sub" style="font-size:1.2rem">${text}</p><button class="btn big" id="cardBtn">${btn}</button>`;
+  const b=$('#cardBtn');b.focus({preventScroll:true});b.onclick=()=>res();})}
+async function bigMsg(t,ms=900){stage.innerHTML=`<div class="bigmsg">${t}</div>`;await sleep(ms)}
+async function moveSteps(n){
+  const dir=n>0?1:-1;
+  for(let i=0;i<Math.abs(n);i++){const np=S.pos+dir;if(np<0||np>LAST)break;S.pos=np;renderTokens();sfx.step();await sleep(280)}
+  await sleep(200);
+}
+
+/* ---------- turn ---------- */
+function diceStage(){
+  stage.innerHTML=`<h2>${S.char} תורך!</h2>
+    <div class="dice" id="dice"><div class="die idle">?</div><div class="die idle">?</div></div>
+    <button class="btn big" id="rollBtn">🎲 הטלת קוביות</button>`;
+  const b=$('#rollBtn');b.focus({preventScroll:true});b.onclick=rollDice;
+}
+async function rollDice(){
+  $('#rollBtn').disabled=true;const ds=[...document.querySelectorAll('#dice .die')];
+  for(let f=0;f<9;f++){ds.forEach(d=>{d.classList.remove('idle');d.textContent=rnd(1,10)});sfx.roll();await sleep(70)}
+  const a=rollDie(),b=rollDie();
+  ds[0].textContent=a;ds[1].textContent=b;
+  ds.forEach((d,i)=>{if([a,b][i]===10)d.classList.add('gold')});
+  await sleep(800);
+  roadExercise(a,b,a===10||b===10);
+}
+async function roadExercise(a,b,bonus){
+  const res=await ask({kind:'mul',a,b,answer:a*b,title:'🗺️',canSplit:true});
+  const steps=2+(a>=6&&b>=6?1:0)+(bonus?1:0);
+  if(res.firstTry)S.stars++;hud();
+  S.lastRoad={a,b,c:a*b};S.turn++;
+  await bigMsg(`נכון! ${res.firstTry?'⭐ ':''}👣 ${steps}`,1000);
+  await moveSteps(steps);
+  if(S.pos>=LAST)return castle();
+  await landEvent(S.board[S.pos]);
+  if(S.pos>=LAST)return castle();
+  await pirateTurn();
+  // every second turn opens with the division twin of the last road exercise
+  if(S.turn%2===1&&S.lastRoad){
+    await echoDiv(S.lastRoad);
+    if(S.pos>=LAST)return castle();
+  }
+  diceStage();
+}
+async function echoDiv(e){
+  const[x,y]=Math.random()<.5?[e.a,e.b]:[e.b,e.a];
+  const kind=Math.random()<.75?'div':'missing';
+  const res=await ask({kind,a:x,b:y,c:e.c,answer:y,title:'🔮 הד!',head:'<div class="card-icon">🔮</div>',mem:e});
+  if(res.firstTry)S.stars++;hud();
+  await bigMsg(`${res.firstTry?'⭐ ':''}👣 1`,800);
+  await moveSteps(1);
+}
+
+/* ---------- squares ---------- */
+async function landEvent(t){
+  if(t==='chest')return chestEvent();
+  if(t==='magic')return magicEvent();
+  if(t==='echo')return echoEvent();
+  if(t==='monster')return monsterEvent(false);
+  if(t==='dragon')return monsterEvent(true);
+}
+async function chestEvent(){
+  sfx.magic();
+  const STAR={i:'⭐⭐',t:'+2',x:''};
+  const R=[
+    [2,()=>S.hearts<5?(S.hearts++,{i:'❤️',t:'+1',x:''}):(S.stars+=2,STAR)],
+    [2,()=>S.pirate<LAST&&S.pirate>0?(S.pirate=Math.max(0,S.pirate-3),renderTokens(),{i:'🌊',t:'סערה!',x:M('🏴‍☠️ ← 3')}):(S.stars+=2,STAR)],
+    [2,()=>(S.split++,{i:'✂️',t:'+1',x:'קלף פירוק'})],
+    [2,()=>({i:'💨',t:'רוח גבית!',x:M('👣 2'),after:2})],
+    [1.5,()=>S.pirate<LAST?(S.pirateStuck=1,{i:'⚓',t:'הפיראט נתקע!',x:''}):(S.split++,{i:'✂️',t:'+1',x:'קלף פירוק'})],
+    [1.5,()=>(S.stars+=2,STAR)]
+  ];
+  const tot=R.reduce((s,r)=>s+r[0],0);let x=Math.random()*tot,pick=R[0];
+  for(const r of R){x-=r[0];if(x<=0){pick=r;break}}
+  const o=pick[1]();hud();
+  await card({icon:o.i,title:o.t,text:o.x,btn:'👍'});
+  if(o.after)await moveSteps(o.after);
+}
+async function magicEvent(){
+  sfx.magic();
+  const t=TRICKS.find(t=>!tricks.includes(t.id));
+  if(!t){S.split++;hud();return card({icon:'✂️',title:'+1',text:'קלף פירוק',btn:'👍'})}
+  tricks.push(t.id);store.set('tricks',tricks);
+  await card({icon:t.icon,title:`✨ ${t.name}`,text:`<span class="ex" dir="ltr">${t.ex}</span>`,btn:'לנסות ▶'});
+  const[a,b]=t.id==='tswap'?t.p():orient(...t.p());
+  const res=await ask({kind:'mul',a,b,answer:a*b,title:`${t.icon} ${t.name}`,sub:`<span dir="ltr" class="m">${t.ex}</span>`});
+  S.stars+=res.firstTry?2:1;hud();
+  await bigMsg(`✨ ⭐${res.firstTry?'⭐':''}`,900);
+}
+async function echoEvent(){
+  const src=S.sessionLog.length?S.sessionLog:log;if(!src.length)return;
+  const e=src[Math.floor(Math.random()*src.length)];
+  const[x,y]=Math.random()<.5?[e.a,e.b]:[e.b,e.a];
+  const kind=Math.random()<.45?'missing':'div';
+  const res=await ask({kind,a:x,b:y,c:e.c,answer:y,title:'🔮 הד!',head:'<div class="card-icon">🔮</div>',mem:e});
+  if(res.firstTry)S.stars++;hud();
+  await card({icon:'🔮',title:`${M(e.a+' × '+e.b+' = '+e.c)}`,text:`<span class="ex" dir="ltr">${e.c} ÷ ${x} = ${y}</span>`,btn:'👣 1'});
+  await moveSteps(1);
+}
+const MONSTERS=[['👾','החייזר הירוק'],['👹','השד האדום'],['🐙','התמנון הענק'],['🦂','העקרב המדברי'],['👻','רוח הרפאים']];
+async function monsterEvent(isDragon){
+  let a,b,icon,name,k,hp=0;
+  if(isDragon){const n=nemesis();k=n.k;[a,b]=orient(n.a,n.b);hp=dragons[k]??4;icon='🐉';name=`הדרקון של ${M(n.a+' × '+n.b)}`}
+  else{[a,b]=pickWeak();[icon,name]=MONSTERS[rnd(0,MONSTERS.length-1)]}
+  const size=isDragon?(2.4+hp*.6):4;
+  const head=`<div class="monster-head" style="font-size:${size}rem">${icon}</div>${isDragon?`<div class="hp" aria-label="כוח הדרקון">כוח: ${'●'.repeat(hp)}${'○'.repeat(Math.max(0,4-hp))}</div>`:''}`;
+  await card({icon,title:isDragon?'🐉 הדרקון!':`${icon} מפלצת!`,text:isDragon?`<span class="hp">${'●'.repeat(hp)}${'○'.repeat(Math.max(0,4-hp))}</span>`:'',btn:'⚔️ להילחם!'});
+  const res=await ask({kind:'mul',a,b,answer:a*b,title:'⚔️',head,canSplit:true,
+    onWrong:()=>{S.hearts--;hud();if(S.hearts<=0)return 'abort'}});
+  if(res.aborted){
+    await card({icon:'🔥',title:'❤️❤️❤️',text:M('👣 ← 3'),btn:'👍'});
+    S.hearts=3;hud();await moveSteps(-3);return;
+  }
+  if(isDragon){
+    hp=Math.max(0,hp-1);dragons[k]=hp;store.set('dragons',dragons);S.stars+=2;hud();
+    if(hp===0){pets.push(k);S.newPet=k;store.set('pets',pets);sfx.win();
+      await card({icon:'🐲',title:'דרקון מחמד!',text:`<span class="ex" dir="ltr">${a} × ${b} = ${a*b}</span>⭐⭐`,btn:'👍'})}
+    else await card({icon:'🐉',title:'הדרקון נחלש!',text:`<span class="hp">${'●'.repeat(hp)}${'○'.repeat(Math.max(0,4-hp))}</span><br>⭐⭐`,btn:'👍'});
+  }else{S.stars++;hud();await card({icon:'🏆',title:'ניצחת!',text:'⭐',btn:'👍'})}
+}
+
+/* ---------- pirate ---------- */
+async function pirateTurn(){
+  if(S.pirate>=LAST)return;
+  if(S.pirateStuck>0){S.pirateStuck--;await bigMsg('🏴‍☠️ ⚓ 💤',1200);return}
+  const r=[1,2,2,3][rnd(0,3)];
+  stage.innerHTML=`<div class="pirate-big">🏴‍☠️</div><h2>תור הפיראט</h2><div class="die small" id="pdie">?</div>`;
+  for(let i=0;i<7;i++){$('#pdie').textContent=rnd(1,3);sfx.roll();await sleep(80)}
+  $('#pdie').textContent=r;await sleep(550);
+  for(let i=0;i<r&&S.pirate<LAST;i++){S.pirate++;renderTokens();sfx.step();await sleep(260)}
+  await sleep(300);
+  if(S.pirate>=LAST&&!S.pirateArrived){S.pirateArrived=true;
+    await card({icon:'🏴‍☠️🏰',title:'הפיראט בטירה!',text:'🗝️ = '+S.char,btn:'מהר! ▶'})}
+}
+
+/* ---------- castle & victory ---------- */
+async function castle(){
+  S.pos=LAST;renderTokens();sfx.magic();
+  await card({icon:'🏰',title:'הגעת לטירה!',text:'<span class="locks">🔒 🔒 🔒</span>',btn:'🗝️ ▶'});
+  const facts=weakList().slice(0,3).map(o=>orient(o.a,o.b));
+  for(let i=0;i<3;i++){
+    const[a,b]=facts[i];
+    await ask({kind:'mul',a,b,answer:a*b,title:'🗝️',head:`<div class="locks">${[0,1,2].map(j=>j<i?'🔓':'🔒').join(' ')}</div>`,canSplit:true});
+    S.stars++;hud();
+  }
+  victory();
+}
+function victory(){
+  sfx.win();
+  const gold=!S.pirateArrived;
+  const isBest=S.stars>best;if(isBest){best=S.stars;store.set('best',best)}
+  // certificate: what she nailed on the first try vs what to practise
+  const bad=new Map(),good=new Map();
+  S.results.forEach(r=>{if(!r.ok)bad.set(r.k,r.t)});
+  S.results.forEach(r=>{if(r.ok&&!bad.has(r.k))good.set(r.k,r.t)});
+  const chips=(m,cls)=>[...m.values()].map(t=>`<span class="chip ${cls}" dir="ltr">${t}</span>`).join('');
+  const date=new Date().toLocaleDateString('he-IL');
+  $('#infoBody').innerHTML=`
+    <div class="cert">
+      <div class="medal ${gold?'gold':'silver'}"><span>${gold?'1':'2'}</span></div>
+      <div class="cert-title">תעודת הצטיינות</div>
+      <div class="cert-name">${S.char} ${S.name}</div>
+      <div class="cert-stars">⭐ ${S.stars}${isBest?' 🏆':''}</div>
+      ${S.newPet?`<div class="cert-stars">🐲 ${M(S.newPet.replace('x',' × '))}</div>`:''}
+      <div class="cert-cols">
+        <div class="cert-col ok"><div class="cert-h">✅ הצלחתי</div><div class="chips">${chips(good,'ok')||'—'}</div></div>
+        <div class="cert-col bad"><div class="cert-h">💪 מתאמנים</div><div class="chips">${chips(bad,'bad')||'🎉'}</div></div>
+      </div>
+      <div class="cert-date">${date}</div>
+    </div>
+    <button class="btn big" id="againBtn">🔄 משחק חדש</button>`;
+  $('#infoOv').classList.add('on');$('#againBtn').onclick=()=>{$('#infoOv').classList.remove('on');newGame()};
+  confetti();
+}
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const cv=$('#fx'),cx=cv.getContext('2d');cv.width=innerWidth;cv.height=innerHeight;
+  const cols=['#f2b632','#e4573f','#4f9d69','#7a5cc9','#3a9bb0'];
+  const P=[...Array(140)].map(()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*.5,vx:(Math.random()-.5)*3,vy:2+Math.random()*3,r:4+Math.random()*5,c:cols[rnd(0,4)],a:Math.random()*6}));
+  let t=0;(function f(){cx.clearRect(0,0,cv.width,cv.height);P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.a+=.1;cx.fillStyle=p.c;cx.save();cx.translate(p.x,p.y);cx.rotate(p.a);cx.fillRect(-p.r,-p.r/2,p.r*2,p.r);cx.restore()});
+    if(++t<220)requestAnimationFrame(f);else cx.clearRect(0,0,cv.width,cv.height)})();
+}
+
+/* ---------- books ---------- */
+function openInfo(html){$('#infoBody').innerHTML=html+`<button class="btn big" id="closeInfo">סגירה</button>`;$('#infoOv').classList.add('on');$('#closeInfo').onclick=()=>$('#infoOv').classList.remove('on');$('#closeInfo').focus()}
+$('#bookBtn').onclick=()=>{
+  const learned=TRICKS.filter(t=>tricks.includes(t.id));
+  openInfo(`<h2>📖 ספר הכשפים</h2>
+    <p class="sub" style="align-self:center">גילית ${learned.length} מתוך ${TRICKS.length} כשפים. כשפים חדשים מחכים במשבצות ✨</p>
+    <div class="list">${TRICKS.map(t=>tricks.includes(t.id)?`<div class="trick"><b>${t.icon} ${t.name}</b><div>${t.text}</div><span class="ex" dir="ltr" style="font-size:1.1rem">${t.ex}</span></div>`:`<div class="trick locked"><b>❔ כשף נעלם</b></div>`).join('')}</div>
+    ${pets.length?`<h2>🐲 דרקוני מחמד</h2><div class="chips">${pets.map(p=>`<span class="chip" dir="ltr">${p.replace('x',' × ')}</span>`).join('')}</div>`:''}`);
+};
+$('#logBtn').onclick=()=>{
+  const items=log.slice().reverse();
+  const n=nemesis();
+  openInfo(`<h2>📜 ספר ההרפתקאות</h2>
+    <p class="sub" style="align-self:center">כל תרגיל שפתרת נשמר כאן. קלף ההד מחזיר תרגילים מהספר, הפוכים.</p>
+    ${items.length?`<div class="chips">${items.map(e=>`<span class="chip" dir="ltr">${e.a} × ${e.b} = ${e.c}</span>`).join('')}</div>`:'<p>הספר עוד ריק. בואי נתחיל!</p>'}
+    <p class="sub" style="align-self:center">הדרקון הנוכחי שומר על ${M(n.a+' × '+n.b)}${dragons[n.k]!=null?` (כוח ${dragons[n.k]} מתוך 4)`:''}.</p>`);
+};
+$('#muteBtn').onclick=()=>{muted=!muted;store.set('muted',muted);hud()};
+
+/* ---------- start ---------- */
+function renderChars(){
+  $('#chars').innerHTML=CHARS.map(c=>`<button type="button" aria-pressed="${c===S.char}" data-c="${c}" aria-label="דמות">${c}</button>`).join('');
+  $('#chars').querySelectorAll('button').forEach(b=>b.onclick=()=>{S.char=b.dataset.c;renderChars()});
+}
+$('#nameInput').value=S.name;renderChars();
+function newGame(){
+  Object.assign(S,{pos:0,pirate:0,hearts:3,stars:0,split:1,pirateStuck:0,pirateArrived:false,board:makeBoard(),sessionLog:[],results:[],turn:0,lastRoad:null,newPet:null});
+  renderMap();hud();
+  card({icon:`${S.char} 🆚 🏴‍☠️`,title:'מי תגיע ראשונה? 🏰',text:'',btn:'יוצאים! ▶'}).then(diceStage);
+}
+$('#startBtn').onclick=()=>{
+  S.name=$('#nameInput').value.trim()||'הרפתקנית';store.set('name',S.name);store.set('char',S.char);
+  $('#startOv').classList.remove('on');newGame();
+};
+$('#nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#startBtn').click()});
+// board visible behind the start screen
+S.board=makeBoard();renderMap();hud();
+stage.innerHTML=`<div class="card-icon">🏴‍☠️</div><h2>הפיראט מחכה...</h2><p class="sub">בחרי דמות ויוצאים לדרך.</p>`;
+</script>
+</body>
+</html>
