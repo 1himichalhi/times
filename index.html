@@ -171,7 +171,7 @@ canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:30}
     <div class="who"><span class="avatar" id="avatar">🧜‍♀️</span><span id="pname">הרפתקנית</span></div>
     <div class="hearts" id="hearts" aria-label="לבבות">❤️❤️❤️</div>
     <div class="pill" id="stars" title="כוכבים">⭐ 0</div>
-    <div class="pill" id="splits" title="קלפי פירוק">✂️ 1</div>
+    
     <div class="hud-btns">
       <button class="btn small" id="bookBtn">📖 ספר הכשפים</button>
       <button class="btn small" id="logBtn">📜 ספר ההרפתקאות</button>
@@ -302,7 +302,6 @@ function renderTokens(){
 function hud(){
   $('#hearts').textContent='❤️'.repeat(S.hearts)+'🤍'.repeat(Math.max(0,3-S.hearts));
   $('#stars').textContent='⭐ '+S.stars;
-  $('#splits').textContent='✂️ '+S.split;
   $('#avatar').textContent=S.char;$('#rP').textContent=S.char;
   $('#pname').textContent=S.name||'הרפתקנית';
   $('#muteBtn').textContent=muted?'🔇':'🔊';
@@ -345,7 +344,7 @@ function hintHTML(q,level){
 /* ---------- asking an exercise ---------- */
 let current=null;
 function ask(q){return new Promise(resolve=>{current={q,input:'',tries:0,level:0,note:'',resolve};renderAsk()})}
-function canSplit(q){return q.canSplit&&S.split>0&&q.kind==='mul'&&Math.min(q.a,q.b)>=3&&Math.max(q.a,q.b)>=6&&!current.note}
+function canSplit(q){return q.canSplit&&q.kind==='mul'&&Math.min(q.a,q.b)>=2&&Math.max(q.a,q.b)>=4&&!current.note}
 function renderAsk(msg){
   const c=current,q=c.q,box=`<span class="ans" id="ans">${c.input||'&nbsp;'}</span>`;
   const expr=q.kind==='mul'?`<span>${q.a} × ${q.b} =</span>${box}`:q.kind==='div'?`<span>${q.c} ÷ ${q.a} =</span>${box}`:`${box}<span>× ${q.a} = ${q.c}</span>`;
@@ -355,12 +354,12 @@ function renderAsk(msg){
     ${q.sub?`<p class="sub">${q.sub}</p>`:''}
     <div class="expr" id="expr" dir="ltr">${expr}</div>
     ${c.note?`<div class="note" dir="ltr">${c.note}</div>`:''}
-    <div class="hint">${msg?`<p style="margin:0 0 6px;font-weight:700">${msg}</p>`:''}${hintHTML(q,c.level)}</div>
+    <div class="hint">${msg?`<p style="margin:0 0 6px;font-weight:700">${msg}</p>`:''}</div>
     <div class="pad" dir="ltr">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="key" data-k="${n}">${n}</button>`).join('')}
       <button class="key fn" data-k="del" aria-label="מחיקה">⌫</button><button class="key" data-k="0">0</button><button class="key go" data-k="ok" aria-label="בדיקה">✓</button></div>
     <div class="tools">
-      ${c.level<3?`<button class="btn ghost" id="hintBtn">💡 רמז</button>`:''}
-      ${canSplit(q)?`<button class="btn ghost" id="splitBtn">✂️ פירוק (${S.split})</button>`:''}
+      
+      ${canSplit(q)?`<button class="btn ghost" id="splitBtn">✂️ פירוק</button>`:''}
     </div>`;
   stage.querySelectorAll('.key').forEach(b=>b.onclick=()=>press(b.dataset.k));
   const hb=$('#hintBtn');if(hb)hb.onclick=()=>{c.level=Math.min(3,c.level+1);renderAsk()};
@@ -388,12 +387,12 @@ async function submit(){
   }else{
     c.tries++;sfx.soft();c.input='';c.level=Math.max(c.level,Math.min(3,c.tries));
     if(q.onWrong&&q.onWrong()==='abort'){current=null;c.resolve({aborted:true});return}
-    renderAsk('כמעט! 💡');
+    renderAsk('כמעט! 🔁');
     $('#expr').classList.add('shake');
   }
 }
 async function splitFlow(){
-  const main=current,q=main.q;S.split--;hud();sfx.magic();
+  const main=current,q=main.q;sfx.magic();
   const big=Math.max(q.a,q.b),small=Math.min(q.a,q.b),p=big>5?5:Math.floor(big/2),r=big-p;
   await ask({kind:'mul',a:small,b:p,answer:small*p,title:'✂️ 1',sub:M(small+' × '+big),track:false});
   await ask({kind:'mul',a:small,b:r,answer:small*r,title:'✂️ 2',sub:M(small+' × '+big),track:false});
@@ -475,9 +474,9 @@ async function chestEvent(){
   const R=[
     [2,()=>S.hearts<5?(S.hearts++,{i:'❤️',t:'+1',x:''}):(S.stars+=2,STAR)],
     [2,()=>S.pirate<LAST&&S.pirate>0?(S.pirate=Math.max(0,S.pirate-3),renderTokens(),{i:'🌊',t:'סערה!',x:M('🏴‍☠️ ← 3')}):(S.stars+=2,STAR)],
-    [2,()=>(S.split++,{i:'✂️',t:'+1',x:'קלף פירוק'})],
+    [2,()=>(S.stars+=2,STAR)],
     [2,()=>({i:'💨',t:'רוח גבית!',x:M('👣 2'),after:2})],
-    [1.5,()=>S.pirate<LAST?(S.pirateStuck=1,{i:'⚓',t:'הפיראט נתקע!',x:''}):(S.split++,{i:'✂️',t:'+1',x:'קלף פירוק'})],
+    [1.5,()=>S.pirate<LAST?(S.pirateStuck=1,{i:'⚓',t:'הפיראט נתקע!',x:''}):(S.stars+=2,STAR)],
     [1.5,()=>(S.stars+=2,STAR)]
   ];
   const tot=R.reduce((s,r)=>s+r[0],0);let x=Math.random()*tot,pick=R[0];
@@ -489,11 +488,12 @@ async function chestEvent(){
 async function magicEvent(){
   sfx.magic();
   const t=TRICKS.find(t=>!tricks.includes(t.id));
-  if(!t){S.split++;hud();return card({icon:'✂️',title:'+1',text:'קלף פירוק',btn:'👍'})}
+  if(!t){S.stars+=2;hud();return card({icon:'⭐⭐',title:'+2',text:'',btn:'👍'})}
   tricks.push(t.id);store.set('tricks',tricks);
   await card({icon:t.icon,title:`✨ ${t.name}`,text:`<span class="ex" dir="ltr">${t.ex}</span>`,btn:'לנסות ▶'});
-  const[a,b]=t.id==='tswap'?t.p():orient(...t.p());
-  const res=await ask({kind:'mul',a,b,answer:a*b,title:`${t.icon} ${t.name}`,sub:`<span dir="ltr" class="m">${t.ex}</span>`});
+  const exm=t.ex.match(/(\d+) × (\d+)/),exk=exm?key(+exm[1],+exm[2]):'';
+  let a,b,g=0;do{[a,b]=t.id==='tswap'?t.p():orient(...t.p());g++}while(key(a,b)===exk&&g<30);
+  const res=await ask({kind:'mul',a,b,answer:a*b,title:`${t.icon} ${t.name}`,sub:`<span dir="ltr" class="m">${t.ex}</span>`,canSplit:true});
   S.stars+=res.firstTry?2:1;hud();
   await bigMsg(`✨ ⭐${res.firstTry?'⭐':''}`,900);
 }
